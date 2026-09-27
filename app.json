@@ -1,0 +1,54 @@
+{
+  "expo": {
+    "name": "Maneco",
+    "slug": "maneco",
+    "version": "1.0.0",
+    "orientation": "default",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#F4F8FC",
+    "androidStatusBar": {
+      "barStyle": "light-content",
+      "backgroundColor": "#00000000",
+      "translucent": true
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "ao.maneco.cad",
+      "infoPlist": {
+        "NSCameraUsageDescription": "A câmara serve para fotografar a radiografia de tórax a classificar.",
+        "NSPhotoLibraryUsageDescription": "A galeria serve para escolher a radiografia de tórax a classificar.",
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true
+        }
+      }
+    },
+    "android": {
+      "package": "ao.maneco.cad",
+      "usesCleartextTraffic": true,
+      "permissions": ["CAMERA"],
+      "adaptiveIcon": {
+        "backgroundColor": "#0E141B",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      }
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "A galeria serve para escolher a radiografia de tórax a classificar.",
+          "cameraPermission": "A câmara serve para fotografar a radiografia de tórax a classificar."
+        }
+      ],
+      "expo-secure-store"
+    ],
+    "extra": {
+      "nota": "Defina EXPO_PUBLIC_API_URL no .env. HTTP na LAN é aceite em desenvolvimento."
+    }
+  }
+}
