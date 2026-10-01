@@ -15,7 +15,7 @@ import { alertarSeRede, classificarImagem, mensagemDeErro } from "../services/ap
 import { Pulso } from "../components/Pulso";
 import { Vidro } from "../components/Vidro";
 import { tema } from "../theme/theme";
-import type { ClasseNome, FicheiroImagem, PredictResposta, SoftmaxClasses } from "../types/api";
+import type { ClasseNome, FicheiroImagem, PredictResposta } from "../types/api";
 import { CLASSES, classeMaisProvavel, MODELO_XAI_PADRAO, MODELOS_XAI, percentagem, ROTULO_CLASSE, rotuloCnn } from "../utils/rotulos";
 
 function notaClinicaVisivel(texto: string): string {
@@ -25,57 +25,6 @@ function notaClinicaVisivel(texto: string): string {
 interface ImagemLocal {
   uri: string;
   ficheiro: FicheiroImagem;
-}
-
-function ModelosIndividuais({
-  probabilidades,
-  activo,
-  onMudar,
-}: {
-  probabilidades: Record<string, SoftmaxClasses>;
-  activo: string | null;
-  onMudar: (nome: string) => void;
-}) {
-  const nomes = Object.keys(probabilidades);
-  const seleccionado = activo && nomes.includes(activo) ? activo : nomes[0];
-  if (!seleccionado) {
-    return null;
-  }
-  const probs = probabilidades[seleccionado];
-  const topo = classeMaisProvavel(probs);
-  return (
-    <View style={estilos.bloco}>
-      <View style={estilos.abas} accessibilityRole="tablist">
-        {nomes.map((nome) => {
-          const ligada = nome === seleccionado;
-          return (
-            <Pressable
-              key={nome}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: ligada }}
-              onPress={() => onMudar(nome)}
-              style={[estilos.aba, ligada && estilos.abaActiva]}
-            >
-              <Text style={[estilos.abaTexto, ligada && estilos.abaTextoActivo]}>{rotuloCnn(nome)}</Text>
-            </Pressable>
-          );
-        })}
-      </View>
-      <Vidro style={estilos.cartao}>
-        <Text style={estilos.kicker}>Modelo</Text>
-        <Text style={estilos.subtituloModelo}>{rotuloCnn(seleccionado)}</Text>
-        <Text style={estilos.meta}>Classe mais provável: {ROTULO_CLASSE[topo]}</Text>
-        {CLASSES.map((classe) => (
-          <BarraProbabilidade
-            key={`${seleccionado}-${classe}`}
-            rotulo={ROTULO_CLASSE[classe]}
-            probabilidade={probs[classe]}
-            destacada={classe === topo}
-          />
-        ))}
-      </Vidro>
-    </View>
-  );
 }
 
 function paraFicheiro(asset: ImagePickerAsset): FicheiroImagem | null {
@@ -101,7 +50,7 @@ export function DiagnosticoScreen() {
   const [aInferir, setAInferir] = useState(false);
   const [resultado, setResultado] = useState<PredictResposta | null>(null);
   const [classeXai, setClasseXai] = useState<ClasseNome | null>(null);
-  const [modeloActivo, setModeloActivo] = useState<string | null>(null);
+  const [modeloActivo, setModeloActivo] = useState("ensemble");
   const [erro, setErro] = useState<string | null>(null);
 
   const sessaoOk = autenticado && apdAceite && Boolean(utilizador) && !utilizador?.bloqueado;
@@ -130,7 +79,15 @@ export function DiagnosticoScreen() {
     setImagem({ uri: asset.uri, ficheiro });
     setResultado(null);
     setClasseXai(null);
-    setModeloActivo(null);
+    setModeloActivo("ensemble");
+    setErro(null);
+  }
+
+  function novaImagem() {
+    setImagem(null);
+    setResultado(null);
+    setClasseXai(null);
+    setModeloActivo("ensemble");
     setErro(null);
   }
 
@@ -187,7 +144,7 @@ export function DiagnosticoScreen() {
         ? resposta.ensemble_oficial.classe_predita
         : (chaves[0] ?? null);
       setClasseXai(preferida);
-      setModeloActivo(Object.keys(resposta.probabilidades_individuais)[0] ?? null);
+      setModeloActivo("ensemble");
     } catch (falha) {
       alertarSeRede(falha);
       setErro(mensagemDeErro(falha, "predict"));
@@ -280,42 +237,70 @@ export function DiagnosticoScreen() {
     />
   );
 
-  const ensemble = resultado ? (
+  const probsModelo = modeloActivo === "ensemble" ? undefined : resultado?.probabilidades_individuais[modeloActivo];
+  const classeModelo = probsModelo ? classeMaisProvavel(probsModelo) : null;
+  const leitura = resultado
+    ? probsModelo && classeModelo
+      ? {
+          probs: probsModelo,
+          classe: classeModelo,
+          confianca: probsModelo[classeModelo],
+          incerta: false,
+        }
+      : {
+          probs: resultado.ensemble_oficial.probabilidades,
+          classe: resultado.ensemble_oficial.classe_predita,
+          confianca: resultado.ensemble_oficial.confianca,
+          incerta: resultado.alerta_incerteza,
+        }
+    : null;
+
+  const resultadoBloco = resultado && leitura ? (
     <View style={estilos.bloco}>
-      {resultado.alerta_incerteza ? <BannerIncerteza /> : null}
       <Vidro style={estilos.cartao}>
-        <Text style={estilos.kicker}>Resultado do Ensemble</Text>
-        <Text style={estilos.classe}>{ROTULO_CLASSE[resultado.ensemble_oficial.classe_predita]}</Text>
-        <Text style={estilos.confianca}>Confiança {percentagem(resultado.ensemble_oficial.confianca)}</Text>
-        <Text style={estilos.meta}>{resultado.ensemble_oficial.componentes.map(rotuloCnn).join(" · ")}</Text>
+        <Text style={estilos.kicker}>Resultado</Text>
+        <View style={estilos.abas} accessibilityRole="tablist">
+          <Pressable
+            accessibilityRole="tab"
+            accessibilityState={{ selected: modeloActivo === "ensemble" }}
+            onPress={() => setModeloActivo("ensemble")}
+            style={[estilos.aba, estilos.abaLinha, modeloActivo === "ensemble" && estilos.abaActiva]}
+          >
+            <Text style={[estilos.abaTexto, modeloActivo === "ensemble" && estilos.abaTextoActivo]}>Ensemble</Text>
+          </Pressable>
+          {Object.keys(resultado.probabilidades_individuais).map((nome) => {
+            const ligado = nome === modeloActivo;
+            return (
+              <Pressable
+                key={nome}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: ligado }}
+                onPress={() => setModeloActivo(nome)}
+                style={[estilos.aba, estilos.abaLinha, ligado && estilos.abaActiva]}
+              >
+                <Text style={[estilos.abaTexto, ligado && estilos.abaTextoActivo]} numberOfLines={1}>
+                  {rotuloCnn(nome)}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        {leitura.incerta ? <BannerIncerteza /> : null}
         {CLASSES.map((classe) => (
           <BarraProbabilidade
-            key={classe}
+            key={`${modeloActivo}-${classe}`}
             rotulo={ROTULO_CLASSE[classe]}
-            probabilidade={resultado.ensemble_oficial.probabilidades[classe]}
-            destacada={classe === resultado.ensemble_oficial.classe_predita}
-            incerta={resultado.alerta_incerteza}
+            probabilidade={leitura.probs[classe]}
+            destacada={classe === leitura.classe}
+            incerta={leitura.incerta}
           />
         ))}
+        <Text style={estilos.classe}>{ROTULO_CLASSE[leitura.classe]}</Text>
+        <Text style={estilos.confianca}>Confiança {percentagem(leitura.confianca)}</Text>
       </Vidro>
       <View style={estilos.notaAviso}>
         <Text style={estilos.notaTexto}>{notaClinicaVisivel(resultado.nota_clinica)}</Text>
       </View>
-    </View>
-  ) : null;
-
-  const modelos = resultado ? (
-    <View style={estilos.bloco}>
-      {resultado.nota_limiares ? (
-        <View style={estilos.nota}>
-          <Text style={estilos.notaTexto}>{resultado.nota_limiares}</Text>
-        </View>
-      ) : null}
-      <ModelosIndividuais
-        probabilidades={resultado.probabilidades_individuais}
-        activo={modeloActivo}
-        onMudar={setModeloActivo}
-      />
     </View>
   ) : null;
 
@@ -330,34 +315,22 @@ export function DiagnosticoScreen() {
   ) : null;
 
   return (
-    <MolduraApp>
-      {tablet ? (
-        <ScrollView contentContainerStyle={estilos.padding} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-          {controlos}
-          <View style={estilos.lado}>
-            <View style={estilos.colunaLado}>
-              {visualizador}
-              {botaoClassificar}
-            </View>
-            <View style={estilos.colunaLado}>{ensemble}</View>
-          </View>
-          {modelos}
-          {validacao}
-        </ScrollView>
-      ) : (
-        <ScrollView contentContainerStyle={estilos.padding} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-          {controlos}
-          {visualizador}
-          {botaoClassificar}
-          {ensemble}
-          {modelos}
-          {validacao}
-        </ScrollView>
-      )}
+    <MolduraApp fundoLogin>
+      <ScrollView style={estilos.scroll} contentContainerStyle={estilos.padding} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        {resultado ? null : controlos}
+        {visualizador}
+        {resultado ? (
+          <BotaoPrimario titulo="Carregar nova imagem" variante="contorno" onPress={novaImagem} />
+        ) : imagem ? (
+          botaoClassificar
+        ) : null}
+        {resultadoBloco}
+        {validacao}
+      </ScrollView>
       {aInferir ? (
         <View style={[StyleSheet.absoluteFill, estilos.bloqueio]} pointerEvents="auto">
           <Pulso />
-          <Text style={estilos.bloqueioTexto}>A inferir o ensemble… pode demorar</Text>
+          <Text style={estilos.bloqueioTexto}>A processar a análise… pode demorar</Text>
         </View>
       ) : null}
     </MolduraApp>
@@ -368,6 +341,7 @@ const estilos = StyleSheet.create({
   flex: { flex: 1 },
   lado: { flexDirection: "row", gap: tema.espaco.lg, alignItems: "flex-start" },
   colunaLado: { flex: 1, gap: tema.espaco.lg },
+  scroll: { flex: 1, backgroundColor: "transparent" },
   padding: { padding: tema.espaco.lg, gap: tema.espaco.lg },
   bloco: { gap: tema.espaco.md },
   controlos: {
@@ -413,7 +387,8 @@ const estilos = StyleSheet.create({
     borderLeftColor: tema.cores.alerta,
   },
   notaTexto: { color: tema.cores.texto, fontSize: tema.tipo.sm, lineHeight: 20 },
-  abas: { flexDirection: "row", flexWrap: "wrap", gap: tema.espaco.sm },
+  abas: { flexDirection: "row", gap: tema.espaco.sm },
+  abaLinha: { flex: 1, alignItems: "center" },
   aba: {
     borderRadius: tema.raio.pill,
     borderWidth: tema.linhaBorda,

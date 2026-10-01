@@ -45,7 +45,18 @@
           "cameraPermission": "A câmara serve para fotografar a radiografia de tórax a classificar."
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#021637",
+          "imageWidth": 1,
+          "resizeMode": "contain",
+          "dark": {
+            "backgroundColor": "#021637"
+          }
+        }
+      ]
     ],
     "extra": {
       "nota": "Defina EXPO_PUBLIC_API_URL no .env. HTTP na LAN é aceite em desenvolvimento."

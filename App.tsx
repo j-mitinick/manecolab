@@ -1,5 +1,7 @@
 import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
-import { StatusBar } from "react-native";
+import * as SplashScreen from "expo-splash-screen";
+import { useCallback } from "react";
+import { StatusBar, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { AuthProvider } from "./src/context/AuthContext";
@@ -20,14 +22,20 @@ const navTema = {
 };
 
 export default function App() {
+  const esconderSplashNativa = useCallback(() => {
+    void SplashScreen.hideAsync();
+  }, []);
+
   return (
     <SafeAreaProvider>
-      <AuthProvider>
-        <NavigationContainer theme={navTema}>
-          <RootNavigator />
-        </NavigationContainer>
-        <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
-      </AuthProvider>
+      <View style={{ flex: 1, backgroundColor: tema.cores.marinhoProfundo }} onLayout={esconderSplashNativa}>
+        <AuthProvider>
+          <NavigationContainer theme={navTema}>
+            <RootNavigator />
+          </NavigationContainer>
+          <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+        </AuthProvider>
+      </View>
     </SafeAreaProvider>
   );
 }

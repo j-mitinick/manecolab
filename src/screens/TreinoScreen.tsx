@@ -56,12 +56,6 @@ export function TreinoScreen() {
             <BotaoPrimario titulo="Tentar de novo" onPress={() => void carregar()} />
           </View>
         ) : null}
-        {fichas[0] ? (
-          <Vidro style={estilos.nota}>
-            <Text style={estilos.notaTexto}>{fichas[0].notas_estudo}</Text>
-            <Text style={estilos.notaTexto}>{fichas[0].protocolo_feedback}</Text>
-          </Vidro>
-        ) : null}
         {fichas.map((ficha) => (
           <Vidro key={ficha.nome} style={estilos.cartao}>
             <Text style={estilos.nome}>{rotuloCnn(ficha.nome)}</Text>
@@ -96,10 +90,4 @@ const estilos = StyleSheet.create({
     padding: tema.espaco.lg,
     gap: tema.espaco.xs,
   },
-  nota: {
-    borderRadius: tema.raio.sm,
-    padding: tema.espaco.md,
-    gap: tema.espaco.sm,
-  },
-  notaTexto: { color: tema.cores.texto, fontSize: tema.tipo.sm, lineHeight: 20 },
 });

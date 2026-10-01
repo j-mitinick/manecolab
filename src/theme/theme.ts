@@ -1,30 +1,47 @@
+// Paleta extraída do logo ManecoLab (fundo marinho + traços ciano/teal/azul).
 export const tema = {
   cores: {
-    fundo: "#F4F8FC",
-    gradienteTopo: "#C5E4F8",
-    gradienteMeio: "#E7F3FB",
+    fundo: "#F2F8FB",
+    gradienteTopo: "#BDEFF4",
+    gradienteMeio: "#E3F6F9",
     superficie: "#FFFFFF",
-    superficieAlta: "#F7FBFE",
-    visualizador: "#07141C",
-    visualizadorBorda: "#1C4E66",
-    primario: "#1570D6",
-    primarioPress: "#0F5CB3",
-    texto: "#102A43",
-    textoInverso: "#E8F4FF",
-    muted: "#627D98",
+    superficieAlta: "#F5FBFC",
+    visualizador: "#021637",
+    visualizadorBorda: "#0B5C7D",
+    primario: "#0E8093",
+    primarioPress: "#0B5C7D",
+    texto: "#032041",
+    textoInverso: "#E6FEFF",
+    muted: "#5B7A90",
     sucesso: "#067647",
     sucessoFundo: "#E7F6EE",
     alerta: "#C05621",
     alertaFundo: "#FFF4EC",
     erro: "#B42318",
     erroFundo: "#FDECEC",
-    teal: "#0E7490",
-    tealPress: "#0C635E",
-    linha: "#D9E4EF",
+    teal: "#28AAB8",
+    tealPress: "#0E8093",
+    linha: "#D3E6EE",
     branco: "#FFFFFF",
-    barraFundo: "#E6EEF6",
-    overlay: "rgba(7, 20, 32, 0.72)",
-    ciano: "#3DDCFF",
+    barraFundo: "#E3EFF4",
+    overlay: "rgba(2, 22, 55, 0.72)",
+    ciano: "#1FDAE5",
+
+    // Cores da marca (logo)
+    marinho: "#032041",
+    marinhoProfundo: "#021637",
+    marinhoClaro: "#022A4C",
+    petroleo: "#0B5C7D",
+    cianoBrilho: "#82F8FC",
+    cianoSuave: "#5EDAE3",
+    azulCircuito: "#105190",
+
+    // Ecrã de login (fundo escuro)
+    loginFundoTopo: "#032041",
+    loginFundoBase: "#021637",
+    loginTexto: "#E6FEFF",
+    loginTextoSecundario: "#9FC3D4",
+    loginDestaque: "#5EDAE3",
   },
   tipo: {
     xs: 12,
@@ -60,17 +77,17 @@ export const tema = {
 } as const;
 
 export const sombraCartao = {
-  shadowColor: "#0F2744",
+  shadowColor: "#021637",
   shadowOffset: { width: 0, height: 10 },
-  shadowOpacity: 0.08,
+  shadowOpacity: 0.1,
   shadowRadius: 20,
   elevation: 4,
 } as const;
 
 export const sombraFlutuante = {
-  shadowColor: "#0F2744",
+  shadowColor: "#021637",
   shadowOffset: { width: 0, height: 12 },
-  shadowOpacity: 0.14,
+  shadowOpacity: 0.18,
   shadowRadius: 24,
   elevation: 8,
 } as const;

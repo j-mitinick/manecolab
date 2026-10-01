@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth } from "../context/AuthContext";
@@ -10,18 +10,17 @@ export function CabecalhoApp() {
   const { utilizador, sair } = useAuth();
   const insets = useSafeAreaInsets();
   const nome = utilizador ? `${utilizador.primeiro_nome} ${utilizador.ultimo_nome}` : "";
-  const iniciais = utilizador
-    ? `${utilizador.primeiro_nome.charAt(0)}${utilizador.ultimo_nome.charAt(0)}`.toUpperCase()
-    : "M";
 
   return (
     <View style={[estilos.barra, { paddingTop: insets.top + tema.espaco.sm }]}>
       <Vidro style={estilos.vidro} intensidade={64}>
-        <View style={estilos.marca}>
-          <Text style={estilos.marcaTexto}>{iniciais}</Text>
-        </View>
+        <Image
+          source={require("../../assets/logo-sem-fundo-claro.png")}
+          accessibilityLabel="ManecoLab"
+          resizeMode="contain"
+          style={estilos.logo}
+        />
         <View style={estilos.nomes}>
-          <Text style={estilos.kicker}>ManecoLab</Text>
           <Text style={estilos.nome} numberOfLines={1}>
             {nome}
           </Text>
@@ -48,23 +47,8 @@ const estilos = StyleSheet.create({
     paddingHorizontal: tema.espaco.md,
     paddingVertical: tema.espaco.sm,
   },
-  marca: {
-    width: 46,
-    height: 46,
-    borderRadius: tema.raio.pill,
-    backgroundColor: tema.cores.primario,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  marcaTexto: { color: tema.cores.branco, fontWeight: "700", fontSize: tema.tipo.sm },
+  logo: { width: 46, height: 46 },
   nomes: { flex: 1, gap: tema.espaco.xs },
-  kicker: {
-    color: tema.cores.teal,
-    fontSize: tema.tipo.xs,
-    fontWeight: "700",
-    letterSpacing: 1.1,
-    textTransform: "uppercase",
-  },
   nome: { color: tema.cores.texto, fontSize: tema.tipo.md, fontWeight: "700" },
   sair: {
     backgroundColor: "rgba(255,255,255,0.38)",

@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Image, ImageBackground, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Aparicao } from "../components/Aparicao";
 import { BotaoPrimario } from "../components/BotaoPrimario";
-import { FundoClinico } from "../components/FundoClinico";
 import { Vidro } from "../components/Vidro";
 import { useAuth } from "../context/AuthContext";
 import { obterSaude } from "../services/api";
@@ -13,6 +12,7 @@ import { tema } from "../theme/theme";
 export function LoginScreen() {
   const { entrar } = useAuth();
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
   const [email, setEmail] = useState("admin@cxr.local");
   const [senha, setSenha] = useState("AltereEstaSenha1");
   const [erro, setErro] = useState<string | null>(null);
@@ -54,20 +54,20 @@ export function LoginScreen() {
   }
 
   return (
-    <FundoClinico>
-      <KeyboardAvoidingView style={estilos.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+    <ImageBackground source={require("../../assets/login-fundo.jpg")} style={estilos.ecra} resizeMode="cover">
+      <KeyboardAvoidingView style={estilos.transparente} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <ScrollView
-          contentContainerStyle={[estilos.conteudo, { paddingTop: insets.top + tema.espaco.xxl, paddingBottom: insets.bottom + tema.espaco.xl }]}
+          style={estilos.transparente}
+          contentContainerStyle={[estilos.conteudo, { paddingTop: insets.top + tema.espaco.xl, paddingBottom: insets.bottom + tema.espaco.xl }]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
           <Aparicao>
-            <Text style={estilos.kicker}>Radiologia</Text>
-            <Text style={estilos.titulo}>ManecoLab</Text>
-            <Text style={estilos.lead}>Classificação assistida de radiografia de tórax. Apoio à leitura, não é diagnóstico.</Text>
+            <Image source={require("../../assets/logo-sem-fundo.png")} accessibilityLabel="ManecoLab" style={estilos.logo} resizeMode="contain" />
+            {/*<Text style={estilos.lead}>Classificação assistida de radiografia de tórax. Apoio à leitura, não é diagnóstico.</Text>*/}
           </Aparicao>
           <Aparicao atraso={140}>
-            <Vidro style={estilos.folha} intensidade={62}>
+            <Vidro isolado style={[estilos.folha, { width: width * 0.7 }]} intensidade={62}>
               {apiIndisponivel ? (
                 <View style={estilos.banner}>
                   <Text style={estilos.bannerTexto}>API indisponível. Confirme o IP em EXPO_PUBLIC_API_URL e a mesma rede Wi-Fi.</Text>
@@ -95,24 +95,33 @@ export function LoginScreen() {
               />
               {erro ? <Text style={estilos.erro}>{erro}</Text> : null}
               <BotaoPrimario titulo="Entrar" onPress={() => void submeter()} aCarregar={aEntrar} />
-              <Text style={estilos.nota}>
+              {/*<Text style={estilos.nota}>
                 A sua conta é criada pelo administrador da unidade. Contacte o responsável se não conseguir entrar.
-              </Text>
+              </Text>*/}
               {/*<Text style={estilos.servidor}>Servidor: {urlApi}</Text>*/}
             </Vidro>
           </Aparicao>
         </ScrollView>
       </KeyboardAvoidingView>
-    </FundoClinico>
+      <Text style={[estilos.credito, { bottom: insets.bottom + tema.espaco.md }]}>criado por: José Reis</Text>
+    </ImageBackground>
   );
 }
 
 const estilos = StyleSheet.create({
-  flex: { flex: 1 },
-  conteudo: { flexGrow: 1, justifyContent: "flex-end", paddingHorizontal: tema.espaco.lg, gap: tema.espaco.xl },
-  kicker: { color: tema.cores.teal, fontSize: tema.tipo.xs, fontWeight: "700", letterSpacing: 1.4, textTransform: "uppercase" },
-  titulo: { color: tema.cores.texto, fontSize: tema.tipo.display, fontWeight: "700", marginTop: tema.espaco.xs },
-  lead: { color: tema.cores.muted, fontSize: tema.tipo.md, lineHeight: 22, maxWidth: 320, marginTop: tema.espaco.sm },
+  ecra: { flex: 1, backgroundColor: tema.cores.marinhoProfundo },
+  transparente: { flex: 1, backgroundColor: "transparent" },
+  conteudo: { flexGrow: 1, justifyContent: "center", alignItems: "center", gap: tema.espaco.xl },
+  logo: { width: 240, height: 120 },
+  credito: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    textAlign: "center",
+    color: tema.cores.loginTextoSecundario,
+    fontSize: tema.tipo.sm,
+  },
+  lead: { color: tema.cores.loginTexto, fontSize: tema.tipo.md, lineHeight: 22, maxWidth: 320, marginTop: tema.espaco.sm },
   folha: {
     borderRadius: tema.raio.lg,
     padding: tema.espaco.xl,

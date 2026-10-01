@@ -1,12 +1,13 @@
-import { useState } from "react";
-import { Modal, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { useEffect, useState } from "react";
+import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { alertarSeRede, erroHttp, mensagemDeErro, submeterFeedback } from "../services/api";
-import { tema } from "../theme/theme";
-import type { ClasseNome, FeedbackPublico, FuncaoNome, NivelExperiencia } from "../types/api";
-import { CLASSES, numeroPt, podeSubmeterFeedback, ROTULO_CLASSE, ROTULO_ESTADO } from "../utils/rotulos";
-import { BotaoPrimario } from "./BotaoPrimario";
-import { Vidro } from "./Vidro";
+import { submeterFeedback } from "../services/api";
+import { sombraFlutuante, tema } from "../theme/theme";
+import type { ClasseNome, FuncaoNome, NivelExperiencia } from "../types/api";
+import { CLASSES, podeSubmeterFeedback, ROTULO_CLASSE } from "../utils/rotulos";
+import { FaixaToast, ToastAviso } from "./ToastAviso";
 
 interface Props {
   funcao: FuncaoNome;
@@ -15,197 +16,173 @@ interface Props {
   classeModelo: ClasseNome | null;
 }
 
-const MENSAGEM_SUCESSO =
-  "Feedback enviado com sucesso. Obrigado por contribuir para a melhoria contínua do modelo. O parecer ficou pendente de revisão do administrador.";
+type TipoParecer = "positivo" | "negativo";
 
-export function ValidacaoMedica({ funcao, nivel, predicaoId, classeModelo }: Props) {
+const TEXTO_RELATORIO = "Ao enviar este relatório, estará a contribuir para futuras melhorias nos nossos modelos.";
+const TOAST_SUCESSO = "Feedback enviado";
+const TOAST_ERRO = "Erro ao enviar o feedback tente novamente.";
+
+export function ValidacaoMedica({ funcao, predicaoId, classeModelo }: Props) {
+  const insets = useSafeAreaInsets();
   const [comentario, setComentario] = useState("");
   const [modalAberto, setModalAberto] = useState(false);
+  const [tipo, setTipo] = useState<TipoParecer>("positivo");
   const [classeEscolhida, setClasseEscolhida] = useState<ClasseNome | null>(null);
   const [aEnviar, setAEnviar] = useState(false);
   const [enviado, setEnviado] = useState(false);
-  const [erro, setErro] = useState<string | null>(null);
-  const [resposta, setResposta] = useState<FeedbackPublico | null>(null);
-  const [toast, setToast] = useState(false);
+  const [toast, setToast] = useState<{ texto: string; sucesso: boolean } | null>(null);
 
-  async function enviar(classe: ClasseNome) {
-    if (predicaoId === null || enviado) {
+  useEffect(() => {
+    if (!toast) {
+      return;
+    }
+    const temporizador = setTimeout(() => setToast(null), 3200);
+    return () => clearTimeout(temporizador);
+  }, [toast]);
+
+  function abrir(parecer: TipoParecer) {
+    setTipo(parecer);
+    setComentario("");
+    setClasseEscolhida(parecer === "positivo" ? classeModelo : null);
+    setModalAberto(true);
+  }
+
+  async function enviar() {
+    if (predicaoId === null || enviado || classeEscolhida === null) {
       return;
     }
     setAEnviar(true);
-    setErro(null);
     try {
-      const fb = await submeterFeedback(predicaoId, {
-        classe_proposta: classe,
+      await submeterFeedback(predicaoId, {
+        classe_proposta: classeEscolhida,
         comentario: comentario.trim() ? comentario.trim() : null,
       });
-      setResposta(fb);
       setEnviado(true);
-      setToast(true);
       setModalAberto(false);
-    } catch (falha) {
-      alertarSeRede(falha);
-      if (erroHttp(falha)?.response?.status === 409) {
-        setEnviado(true);
-      }
-      setErro(mensagemDeErro(falha));
+      setToast({ texto: TOAST_SUCESSO, sucesso: true });
+    } catch {
+      setToast({ texto: TOAST_ERRO, sucesso: false });
     } finally {
       setAEnviar(false);
     }
   }
 
-  if (!podeSubmeterFeedback(funcao)) {
-    return (
-      <Vidro style={estilos.cartao}>
-        <Text style={estilos.titulo}>Validação de rótulo</Text>
-        <Text style={estilos.corpo}>A validação de rótulo para o corpus é feita pelo radiologista.</Text>
-      </Vidro>
-    );
-  }
+  const positivo = tipo === "positivo";
 
-  if (predicaoId === null || classeModelo === null) {
+  if (!podeSubmeterFeedback(funcao) || predicaoId === null || classeModelo === null || enviado) {
     return (
-      <Vidro style={estilos.cartao}>
-        <Text style={estilos.titulo}>Validação de rótulo</Text>
-        <Text style={estilos.corpo}>Classifique uma imagem para registar o parecer.</Text>
-      </Vidro>
+      <ToastAviso
+        texto={toast?.texto ?? ""}
+        sucesso={toast?.sucesso ?? false}
+        visivel={toast !== null}
+        onFechar={() => setToast(null)}
+      />
     );
   }
 
   return (
-    <Vidro style={estilos.cartao}>
-      <Text style={estilos.titulo}>Validação de rótulo</Text>
-      <Text style={estilos.corpo}>
-        Um único parecer por predição. A classe proposta não actualiza o modelo: fica pendente de revisão do administrador.
-      </Text>
-      {nivel === "junior" ? (
-        <Text style={estilos.avisoJunior}>O seu parecer fica pendente de revisão e pesa 0,25 no corpus.</Text>
-      ) : null}
-      <Text style={estilos.etiqueta}>Comentário (opcional)</Text>
-      <TextInput
-        value={comentario}
-        onChangeText={setComentario}
-        editable={!enviado && !aEnviar}
-        multiline
-        maxLength={2000}
-        placeholder="Observação clínica, sem identificadores do paciente"
-        placeholderTextColor={tema.cores.muted}
-        style={estilos.campo}
-      />
+    <>
       <View style={estilos.accoes}>
-        <BotaoPrimario
-          titulo="Confirmar classificação da IA"
-          onPress={() => void enviar(classeModelo)}
-          disabled={enviado}
-          aCarregar={aEnviar && !modalAberto}
-        />
-        <BotaoPrimario
-          titulo="Corrigir classificação"
-          variante="teal"
-          onPress={() => {
-            setClasseEscolhida(null);
-            setModalAberto(true);
-          }}
-          disabled={enviado || aEnviar}
-        />
+        <Pressable accessibilityRole="button" onPress={() => abrir("positivo")} style={[estilos.parecer, estilos.parecerBom]}>
+          <Ionicons name="thumbs-up-outline" size={22} color={tema.cores.branco} />
+          <Text style={estilos.parecerTexto}>Boa resposta</Text>
+        </Pressable>
+        <Pressable accessibilityRole="button" onPress={() => abrir("negativo")} style={[estilos.parecer, estilos.parecerRuim]}>
+          <Ionicons name="thumbs-down-outline" size={22} color={tema.cores.branco} />
+          <Text style={estilos.parecerTexto}>Resposta Ruim</Text>
+        </Pressable>
       </View>
-      {erro ? <Text style={estilos.erro}>{erro}</Text> : null}
-      {resposta ? (
-        <View style={estilos.resultado}>
-          <Text style={estilos.corpo}>Estado: {ROTULO_ESTADO[resposta.estado]}</Text>
-          <Text style={estilos.corpo}>
-            Classe proposta: {ROTULO_CLASSE[resposta.classe_proposta]} · Peso {numeroPt(resposta.peso)}
-          </Text>
-          {resposta.aviso_proteccao ? <Text style={estilos.avisoJunior}>{resposta.aviso_proteccao}</Text> : null}
-        </View>
-      ) : null}
-      {toast ? (
-        <View style={estilos.toast}>
-          <Text style={estilos.toastTexto}>{MENSAGEM_SUCESSO}</Text>
-          <Pressable onPress={() => setToast(false)} accessibilityRole="button">
-            <Text style={estilos.fechar}>Fechar</Text>
-          </Pressable>
-        </View>
-      ) : null}
 
       <Modal visible={modalAberto} transparent animationType="fade" onRequestClose={() => setModalAberto(false)}>
         <View style={estilos.modalFundo}>
-          <Vidro isolado style={estilos.modalCartao} intensidade={70}>
-            <Text style={estilos.titulo}>Corrigir classificação</Text>
-            <Text style={estilos.corpo}>Escolha uma única classe. Se coincidir com a IA, o envio conta como confirmação.</Text>
-            {CLASSES.map((classe) => {
-              const activa = classeEscolhida === classe;
-              return (
-                <Pressable
-                  key={classe}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected: activa }}
-                  onPress={() => setClasseEscolhida(classe)}
-                  style={estilos.radioLinha}
-                >
-                  <View style={[estilos.radio, activa && estilos.radioActivo]} />
-                  <Text style={estilos.radioTexto}>
-                    {ROTULO_CLASSE[classe]}
-                    {classe === classeModelo ? " (classe da IA)" : ""}
-                  </Text>
-                </Pressable>
-              );
-            })}
-            {classeEscolhida === classeModelo ? (
-              <Text style={estilos.avisoJunior}>Esta classe coincide com a da IA; o envio conta como confirmação.</Text>
-            ) : null}
-            <BotaoPrimario
-              titulo="Enviar correção"
-              onPress={() => {
-                if (classeEscolhida) {
-                  void enviar(classeEscolhida);
-                }
-              }}
-              disabled={!classeEscolhida}
-              aCarregar={aEnviar}
+          <View style={estilos.modalCartao}>
+            <Text style={estilos.titulo}>{positivo ? "Dar feedback positivo" : "Dar feedback negativo"}</Text>
+            {positivo ? null : (
+              <View style={estilos.classes}>
+                {CLASSES.map((classe) => {
+                  const activa = classeEscolhida === classe;
+                  return (
+                    <Pressable
+                      key={classe}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected: activa }}
+                      onPress={() => setClasseEscolhida(classe)}
+                      style={estilos.radioLinha}
+                    >
+                      <View style={[estilos.radio, activa && estilos.radioActivo]} />
+                      <Text style={estilos.radioTexto}>
+                        {ROTULO_CLASSE[classe]}
+                        {classe === classeModelo ? " (classe da IA)" : ""}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            )}
+            <Text style={estilos.etiqueta}>Dê os detalhes: (opcional)</Text>
+            <TextInput
+              value={comentario}
+              onChangeText={setComentario}
+              editable={!aEnviar}
+              multiline
+              maxLength={2000}
+              placeholder={positivo ? "O que foi satisfatório na resposta?" : "O que esteve mal na resposta?"}
+              placeholderTextColor={tema.cores.muted}
+              style={estilos.campo}
             />
-            <BotaoPrimario titulo="Cancelar" variante="contorno" onPress={() => setModalAberto(false)} disabled={aEnviar} />
-          </Vidro>
+            <Text style={estilos.relatorio}>{TEXTO_RELATORIO}</Text>
+            <View style={estilos.botoesDialogo}>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => setModalAberto(false)}
+                disabled={aEnviar}
+                style={estilos.cancelar}
+              >
+                <Text style={estilos.cancelarTexto}>Cancelar</Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => void enviar()}
+                disabled={aEnviar || classeEscolhida === null}
+                style={[estilos.enviar, (aEnviar || classeEscolhida === null) && estilos.inactivo]}
+              >
+                {aEnviar ? <ActivityIndicator color={tema.cores.branco} /> : <Text style={estilos.enviarTexto}>Enviar</Text>}
+              </Pressable>
+            </View>
+          </View>
+          {toast && modalAberto ? (
+            <View pointerEvents="none" style={[estilos.toastTopo, { top: insets.top + tema.espaco.md }]}>
+              <FaixaToast texto={toast.texto} sucesso={toast.sucesso} />
+            </View>
+          ) : null}
         </View>
       </Modal>
-    </Vidro>
+      <ToastAviso
+        texto={toast?.texto ?? ""}
+        sucesso={toast?.sucesso ?? false}
+        visivel={toast !== null && !modalAberto}
+        onFechar={() => setToast(null)}
+      />
+    </>
   );
 }
 
 const estilos = StyleSheet.create({
-  cartao: {
-    borderRadius: tema.raio.lg,
-    padding: tema.espaco.lg,
-    gap: tema.espaco.md,
-  },
-  titulo: { color: tema.cores.texto, fontSize: tema.tipo.lg, fontWeight: "700" },
-  corpo: { color: tema.cores.muted, fontSize: tema.tipo.sm, lineHeight: 20 },
-  avisoJunior: { color: tema.cores.alerta, fontSize: tema.tipo.sm, lineHeight: 20 },
-  etiqueta: { color: tema.cores.texto, fontSize: tema.tipo.sm, fontWeight: "600" },
-  campo: {
-    minHeight: 88,
-    borderWidth: tema.linhaBorda,
-    borderColor: tema.cores.linha,
-    borderRadius: tema.raio.sm,
-    padding: tema.espaco.md,
-    color: tema.cores.texto,
-    fontSize: tema.tipo.md,
-    textAlignVertical: "top",
-    backgroundColor: tema.cores.fundo,
-  },
-  accoes: { gap: tema.espaco.sm },
-  erro: { color: tema.cores.erro, fontSize: tema.tipo.sm },
-  resultado: { gap: tema.espaco.xs },
-  toast: {
-    backgroundColor: tema.cores.sucessoFundo,
-    borderRadius: tema.raio.sm,
-    padding: tema.espaco.md,
+  accoes: { flexDirection: "row", gap: tema.espaco.sm, backgroundColor: "transparent" },
+  parecer: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: tema.espaco.sm,
-    borderWidth: tema.linhaBorda,
-    borderColor: tema.cores.sucesso,
+    minHeight: tema.alturaToque,
+    borderRadius: tema.raio.pill,
+    paddingHorizontal: tema.espaco.sm,
+    paddingVertical: tema.espaco.sm,
   },
-  toastTexto: { color: tema.cores.texto, fontSize: tema.tipo.sm, lineHeight: 20 },
-  fechar: { color: tema.cores.sucesso, fontSize: tema.tipo.sm, fontWeight: "700" },
+  parecerBom: { backgroundColor: tema.cores.primario },
+  parecerRuim: { backgroundColor: tema.cores.erro },
+  parecerTexto: { color: tema.cores.branco, fontSize: tema.tipo.sm, fontWeight: "700", flexShrink: 1 },
   modalFundo: {
     flex: 1,
     backgroundColor: tema.cores.overlay,
@@ -213,10 +190,48 @@ const estilos = StyleSheet.create({
     padding: tema.espaco.lg,
   },
   modalCartao: {
+    backgroundColor: tema.cores.branco,
     borderRadius: tema.raio.lg,
-    padding: tema.espaco.lg,
+    padding: tema.espaco.xl,
     gap: tema.espaco.md,
+    ...sombraFlutuante,
   },
+  titulo: { color: tema.cores.texto, fontSize: tema.tipo.xl, fontWeight: "700" },
+  etiqueta: { color: tema.cores.muted, fontSize: tema.tipo.sm },
+  campo: {
+    minHeight: 96,
+    borderWidth: 1.5,
+    borderColor: tema.cores.primario,
+    borderRadius: tema.raio.sm,
+    padding: tema.espaco.md,
+    color: tema.cores.texto,
+    fontSize: tema.tipo.md,
+    textAlignVertical: "top",
+    backgroundColor: tema.cores.branco,
+  },
+  relatorio: { color: tema.cores.muted, fontSize: tema.tipo.sm, lineHeight: 20 },
+  botoesDialogo: { flexDirection: "row", justifyContent: "flex-end", gap: tema.espaco.sm, marginTop: tema.espaco.sm },
+  cancelar: {
+    borderRadius: tema.raio.pill,
+    borderWidth: tema.linhaBorda,
+    borderColor: tema.cores.linha,
+    backgroundColor: tema.cores.branco,
+    paddingHorizontal: tema.espaco.lg,
+    paddingVertical: tema.espaco.sm,
+  },
+  cancelarTexto: { color: tema.cores.texto, fontSize: tema.tipo.sm, fontWeight: "700" },
+  enviar: {
+    borderRadius: tema.raio.pill,
+    backgroundColor: tema.cores.marinho,
+    paddingHorizontal: tema.espaco.lg,
+    paddingVertical: tema.espaco.sm,
+    minWidth: 88,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  enviarTexto: { color: tema.cores.branco, fontSize: tema.tipo.sm, fontWeight: "700" },
+  inactivo: { opacity: tema.opacidadeDesactivado },
+  classes: { gap: tema.espaco.sm },
   radioLinha: { flexDirection: "row", alignItems: "center", gap: tema.espaco.md },
   radio: {
     width: 18,
@@ -227,4 +242,5 @@ const estilos = StyleSheet.create({
   },
   radioActivo: { borderColor: tema.cores.primario, backgroundColor: tema.cores.primario },
   radioTexto: { color: tema.cores.texto, fontSize: tema.tipo.md, flex: 1 },
+  toastTopo: { position: "absolute", left: tema.espaco.lg, right: tema.espaco.lg },
 });

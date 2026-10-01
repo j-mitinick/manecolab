@@ -1,8 +1,7 @@
-import { StyleSheet, Text, View } from "react-native";
+import { useEffect, useState } from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 
-import { FundoClinico } from "../components/FundoClinico";
-import { Pulso } from "../components/Pulso";
+import { EcraMarca } from "../components/EcraMarca";
 import { useAuth } from "../context/AuthContext";
 import { ConsentimentoAPDScreen } from "../screens/ConsentimentoAPDScreen";
 import { DiagnosticoScreen } from "../screens/DiagnosticoScreen";
@@ -15,19 +14,19 @@ import { tema } from "../theme/theme";
 import type { RotasApp } from "./tipos";
 
 const Stack = createNativeStackNavigator<RotasApp>();
+const SPLASH_MS = 1600;
 
 export function RootNavigator() {
   const { pronto, onboardingVisto, autenticado, apdAceite } = useAuth();
+  const [splash, setSplash] = useState(true);
 
-  if (!pronto) {
-    return (
-      <FundoClinico>
-        <View style={estilos.arranque}>
-          <Pulso />
-          <Text style={estilos.marca}>Maneco</Text>
-        </View>
-      </FundoClinico>
-    );
+  useEffect(() => {
+    const temporizador = setTimeout(() => setSplash(false), SPLASH_MS);
+    return () => clearTimeout(temporizador);
+  }, []);
+
+  if (splash || !pronto) {
+    return <EcraMarca legenda={splash ? null : "A carregar a aplicação"} />;
   }
 
   if (!onboardingVisto) {
@@ -59,14 +58,3 @@ export function RootNavigator() {
     </Stack.Navigator>
   );
 }
-
-const estilos = StyleSheet.create({
-  arranque: {
-    flex: 1,
-    backgroundColor: "transparent",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: tema.espaco.lg,
-  },
-  marca: { color: tema.cores.texto, fontSize: tema.tipo.xl, fontWeight: "700" },
-});

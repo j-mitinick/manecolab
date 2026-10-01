@@ -1,12 +1,14 @@
-import { useState } from "react";
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput } from "react-native";
+import { useCallback, useRef, useState } from "react";
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 
 import { BadgeFuncao } from "../components/BadgeFuncao";
 import { BotaoPrimario } from "../components/BotaoPrimario";
 import { MolduraApp } from "../components/MolduraApp";
+import { ToastAviso } from "../components/ToastAviso";
 import { Vidro } from "../components/Vidro";
 import { useAuth } from "../context/AuthContext";
-import { alertarSeRede, mensagemDeErro } from "../services/api";
+import { mensagemDeErro } from "../services/api";
 import { tema } from "../theme/theme";
 import { ROTULO_NIVEL } from "../utils/rotulos";
 
@@ -14,22 +16,32 @@ export function PerfilScreen() {
   const { utilizador, sair, alterarSenha } = useAuth();
   const [senhaAtual, setSenhaAtual] = useState("");
   const [senhaNova, setSenhaNova] = useState("");
-  const [erro, setErro] = useState<string | null>(null);
+  const [verAtual, setVerAtual] = useState(false);
+  const [verNova, setVerNova] = useState(false);
+  const [toast, setToast] = useState<{ texto: string; sucesso: boolean } | null>(null);
   const [aGuardar, setAGuardar] = useState(false);
+  const terminarSessao = useRef(false);
+
+  const fecharToast = useCallback(() => {
+    setToast(null);
+    if (terminarSessao.current) {
+      terminarSessao.current = false;
+      void sair();
+    }
+  }, [sair]);
 
   async function submeter() {
     if (senhaNova.length < 8) {
-      setErro("A nova palavra-passe tem de ter pelo menos 8 caracteres.");
+      setToast({ texto: "A nova palavra-passe tem de ter pelo menos 8 caracteres.", sucesso: false });
       return;
     }
     setAGuardar(true);
-    setErro(null);
     try {
       await alterarSenha(senhaAtual, senhaNova);
-      Alert.alert("Palavra-passe alterada", "A sessão foi terminada. Entre novamente.");
+      terminarSessao.current = true;
+      setToast({ texto: "Palavra-passe alterada. Entre novamente.", sucesso: true });
     } catch (falha) {
-      alertarSeRede(falha);
-      setErro(mensagemDeErro(falha));
+      setToast({ texto: mensagemDeErro(falha), sucesso: false });
       setAGuardar(false);
     }
   }
@@ -54,28 +66,53 @@ export function PerfilScreen() {
           <Vidro style={estilos.cartao}>
             <Text style={estilos.subtitulo}>Alterar palavra-passe</Text>
             <Text style={estilos.meta}>Depois de gravar, o servidor invalida a sessão e é preciso entrar de novo.</Text>
-            <TextInput
-              secureTextEntry
-              value={senhaAtual}
-              onChangeText={setSenhaAtual}
-              placeholder="Palavra-passe actual"
-              placeholderTextColor={tema.cores.muted}
-              style={estilos.campo}
-            />
-            <TextInput
-              secureTextEntry
-              value={senhaNova}
-              onChangeText={setSenhaNova}
-              placeholder="Nova palavra-passe (mín. 8)"
-              placeholderTextColor={tema.cores.muted}
-              style={estilos.campo}
-            />
-            {erro ? <Text style={estilos.erro}>{erro}</Text> : null}
+            <View style={estilos.campoLinha}>
+              <TextInput
+                secureTextEntry={!verAtual}
+                value={senhaAtual}
+                onChangeText={setSenhaAtual}
+                placeholder="Palavra-passe actual"
+                placeholderTextColor={tema.cores.muted}
+                style={estilos.campo}
+              />
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={verAtual ? "Esconder palavra-passe actual" : "Ver palavra-passe actual"}
+                onPress={() => setVerAtual((visivel) => !visivel)}
+                style={estilos.olho}
+              >
+                <Ionicons name={verAtual ? "eye-off-outline" : "eye-outline"} size={22} color={tema.cores.muted} />
+              </Pressable>
+            </View>
+            <View style={estilos.campoLinha}>
+              <TextInput
+                secureTextEntry={!verNova}
+                value={senhaNova}
+                onChangeText={setSenhaNova}
+                placeholder="Nova palavra-passe (mín. 8)"
+                placeholderTextColor={tema.cores.muted}
+                style={estilos.campo}
+              />
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={verNova ? "Esconder nova palavra-passe" : "Ver nova palavra-passe"}
+                onPress={() => setVerNova((visivel) => !visivel)}
+                style={estilos.olho}
+              >
+                <Ionicons name={verNova ? "eye-off-outline" : "eye-outline"} size={22} color={tema.cores.muted} />
+              </Pressable>
+            </View>
             <BotaoPrimario titulo="Guardar palavra-passe" onPress={() => void submeter()} aCarregar={aGuardar} />
           </Vidro>
           <BotaoPrimario titulo="Sair" variante="perigo" onPress={() => void sair()} />
         </ScrollView>
       </KeyboardAvoidingView>
+      <ToastAviso
+        texto={toast?.texto ?? ""}
+        sucesso={toast?.sucesso ?? false}
+        visivel={toast !== null}
+        onFechar={fecharToast}
+      />
     </MolduraApp>
   );
 }
@@ -92,15 +129,25 @@ const estilos = StyleSheet.create({
   },
   nome: { color: tema.cores.texto, fontSize: tema.tipo.lg, fontWeight: "700" },
   meta: { color: tema.cores.muted, fontSize: tema.tipo.sm, lineHeight: 20 },
-  campo: {
+  campoLinha: {
+    flexDirection: "row",
+    alignItems: "center",
     borderWidth: tema.linhaBorda,
     borderColor: tema.cores.linha,
     borderRadius: tema.raio.sm,
+    backgroundColor: tema.cores.fundo,
+  },
+  campo: {
+    flex: 1,
     paddingHorizontal: tema.espaco.md,
     paddingVertical: tema.espaco.md,
     color: tema.cores.texto,
     fontSize: tema.tipo.md,
-    backgroundColor: tema.cores.fundo,
   },
-  erro: { color: tema.cores.erro, fontSize: tema.tipo.sm },
+  olho: {
+    minWidth: tema.alturaToque,
+    minHeight: tema.alturaToque,
+    alignItems: "center",
+    justifyContent: "center",
+  },
 });

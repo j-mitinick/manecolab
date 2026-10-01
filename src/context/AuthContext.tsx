@@ -122,13 +122,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const alterarSenha = useCallback(
-    async (senhaAtual: string, senhaNova: string) => {
-      await alterarSenhaApi(senhaAtual, senhaNova);
-      await sair();
-    },
-    [sair],
-  );
+  const alterarSenha = useCallback(async (senhaAtual: string, senhaNova: string) => {
+    await alterarSenhaApi(senhaAtual, senhaNova);
+  }, []);
 
   const valor = useMemo<AuthContextValue>(
     () => ({
